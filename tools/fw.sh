@@ -57,7 +57,8 @@ apply_patches() {
     if [[ -n "$(git -C "$SDK" status --porcelain --untracked-files=no)" ]]; then
         echo "fw.sh: resetting the SDK checkout to its pinned commit before patching"
     fi
-    git -C "$SDK" checkout -- .
+    # Staged changes too (reset --hard): untracked build output is left alone.
+    git -C "$SDK" reset -q --hard HEAD
     local f p
     for f in $(created_files); do
         rm -f "$SDK/$f"

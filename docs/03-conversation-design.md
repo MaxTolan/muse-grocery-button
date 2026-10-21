@@ -54,13 +54,19 @@ fridge button's messages from the phone's or the todo display's (issue #2):
 
 - Exactly `[fridge-button]`, then one space, as the first characters of the message text. Always
   the same string in the same place, so Muse can key on it.
-- On every outbound path: each voice note's message text (`CONFIG_MUSE_VOICE_NOTE_TEXT`) and each
-  outbox batch of confirmed items (`[fridge-button] Please put these on my Costco/Kroger grocery
-  lists.` then one `- Store: item` line per item).
+- On every outbound path:
+  - **Voice notes:** a plain text message sent just ahead of each note, starting with the tag
+    (`CONFIG_MUSE_VOICE_NOTE_PRELUDE`). Muse rebuilds a voice note's own text from its transcript,
+    so text attached to the note is stripped. Quick taps send nothing. Muse's answer to the tag
+    message isn't shown on the screen.
+  - **Outbox batches** of confirmed items: `[fridge-button] Please put these on my Costco/Kroger
+    grocery lists.`, then one `- Store: item` line per item.
 - It labels the message, not the groceries: never spoken, never shown on the screen (stripped if
   Muse echoes it), never part of an item or a list entry.
 - Defined once in `components/grocery_button/include/grocery_source.h`. The build fails if the
-  voice-note text doesn't start with it.
+  voice-note tag message doesn't start with it.
+- Confirmed on the button Oct 21, 2026: the tag message shows up in the Muse app just ahead of the
+  voice note.
 
 ## What NOT to do
 

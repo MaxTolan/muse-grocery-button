@@ -9,10 +9,11 @@ the Google speech path below is parked in
 
 - **Waiting:** Jollybot in pixel art (the SDK's avatar in the todo display's top hat, ported from
   muse-todo-display), with "Hold the top button to talk" and any status line ("No Wi-Fi").
-- **Hold the top button and speak:** "Listening..." with a ring around the rim. On release the
-  clip goes to Muse as a voice note, with the text "[fridge-button] Voice note from the grocery
-  button on my refrigerator: a grocery item for my Costco or Kroger list. Reply in one short
-  sentence." (SDK patch 0005, `CONFIG_MUSE_VOICE_NOTE_TEXT`).
+- **Hold the top button and speak:** "Listening..." with a ring around the rim. The clip goes to
+  Muse as a voice note. Just ahead of it, the button sends a text message: "[fridge-button] Voice
+  note from the grocery button on my refrigerator follows: a grocery item for my Costco or Kroger
+  list. Please reply in one short sentence." (SDK patch 0005, `CONFIG_MUSE_VOICE_NOTE_PRELUDE`).
+  Muse strips any text attached to a voice note, so the label travels as its own message.
 - **Source tag:** every message to Muse starts with `[fridge-button] `, voice notes and outbox
   batches alike, and the tag never reaches the screen, speech or the lists. Convention and rules:
   `03-conversation-design.md`, "Source tag on every message to Muse" (issue #2).
@@ -146,7 +147,8 @@ The voice can be changed with `CONFIG_GROCERY_TTS_VOICE` (default `en-US-Neural2
 
 SDK patches: 0001–0003 are the todo display's (extra config overlays, `muse_ext` app hooks, a
 Wi-Fi fix). 0004 lets the app replace the SDK's voice loop and reports Muse's acknowledgement of a
-typed message. 0005 adds the text sent with each voice note.
+typed message. 0005 sends a text message (the source tag) just ahead of each voice note and hides
+Muse's answer to it.
 
 ### Tests
 

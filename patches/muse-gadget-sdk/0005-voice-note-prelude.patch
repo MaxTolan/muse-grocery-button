@@ -1,0 +1,165 @@
+diff --git a/esp32/components/muse/Kconfig b/esp32/components/muse/Kconfig
+index 0c18ced..e8339c8 100644
+--- a/esp32/components/muse/Kconfig
++++ b/esp32/components/muse/Kconfig
+@@ -159,6 +159,18 @@ menu "Muse"
+             GPIO, and set that GPIO here. -1 leaves push-to-talk recording
+             silence.
+ 
++    config MUSE_VOICE_NOTE_PRELUDE
++        string "Text message sent just before each voice note"
++        depends on MUSE_HATCH
++        default ""
++        help
++            Muse keeps only a voice note's recording (its message text is
++            rebuilt from the transcript), so a label for where a note comes
++            from goes in a plain text message of its own, sent on the same
++            connection just ahead of the note: e.g. "[kitchen-button] Voice
++            note follows". Sent only for real notes (not taps), and Muse's
++            reply to it isn't shown. Empty: none.
++
+     config MUSE_HATCH
+         bool "Muse's own voice session"
+         depends on MUSE_ENABLED
+diff --git a/esp32/components/muse/muse_chat_session.cpp b/esp32/components/muse/muse_chat_session.cpp
+index 014ddfb..5f0f1f2 100644
+--- a/esp32/components/muse/muse_chat_session.cpp
++++ b/esp32/components/muse/muse_chat_session.cpp
+@@ -124,6 +124,16 @@ static const char *TAG = "muse_chat_session";
+ #define VOICE_NOTE 1
+ #define NOTE_MAX_BYTES (MIC_RATE * 2 * 20) /* 20 s of 16 kHz PCM; Muse stops at 15 */
+ #define NOTE_PART_BYTES (DICT_CHUNK_BYTES / 4 * 3)   /* staged PCM that base64s to one body chunk */
++/*
++ * The note's request opens once this much audio is in: past the pre-roll
++ * (320 ms) and a tap (300 ms), so the prelude message goes only with real
++ * notes. At the release, 0.3 s is enough (taps are cancelled before it).
++ */
++#define NOTE_OPEN_BYTES (MIC_RATE * 2 * 7 / 10)
++#define NOTE_MIN_BYTES (MIC_RATE * 2 * 3 / 10)
++#ifndef CONFIG_MUSE_VOICE_NOTE_PRELUDE
++#define CONFIG_MUSE_VOICE_NOTE_PRELUDE ""
++#endif
+ 
+ #define MAX_MSGS 8
+ 
+@@ -172,7 +182,7 @@ static int64_t s_auto_backoff_us = AUTO_RETRY_MIN_US;
+ 
+ /* ---- Streams on the connection ---- */
+ 
+-enum kind_t : uint8_t { K_NONE, K_SUB, K_DICT, K_CHAT, K_TTS };
++enum kind_t : uint8_t { K_NONE, K_SUB, K_DICT, K_CHAT, K_TTS, K_PRELUDE };
+ 
+ struct stream_t {
+     int64_t id;
+@@ -230,6 +240,8 @@ struct turn_t {
+     char committed[512];     /* finals that arrived before the half-close */
+     char partial[512];
+     char user_ids[2][80];
++    bool note_open;          /* the voice note's chat request is open */
++    char prelude_id[80];     /* the prelude message (CONFIG_MUSE_VOICE_NOTE_PRELUDE), once acked */
+     muse_chat_rejected_t rejected;
+     msg_t msgs[MAX_MSGS];
+     int nmsgs;
+@@ -1019,11 +1031,7 @@ static void turn_begin(uint32_t gen)
+         return;
+     }
+     if (VOICE_NOTE) {
+-        if (!open_note()) {
+-            disconnect("chat open failed");
+-            turn_fail("CAN'T REACH MUSE");
+-            return;
+-        }
++        /* record_note() opens the note's request (after its prelude) once it's clearly not a tap. */
+         s_turn.phase = P_LISTEN;
+         return;
+     }
+@@ -1128,9 +1136,46 @@ static bool open_note(void)
+     return true;
+ }
+ 
++/*
++ * The label message ahead of a voice note (CONFIG_MUSE_VOICE_NOTE_PRELUDE): a
++ * request of its own, complete at once, so it reaches Muse before the note
++ * whose body is still streaming. Its failure doesn't hold up the note.
++ */
++static void send_prelude(void)
++{
++    if (!CONFIG_MUSE_VOICE_NOTE_PRELUDE[0]) {
++        return;
++    }
++    cJSON *body = cJSON_CreateObject();
++    cJSON_AddStringToObject(body, "message", CONFIG_MUSE_VOICE_NOTE_PRELUDE);
++    cJSON_AddStringToObject(body, "output_modality", "text");
++    char *json = cJSON_PrintUnformatted(body);
++    cJSON_Delete(body);
++    if (!json || !open_stream(K_PRELUDE, "POST", "/chat/stream", "application/json", nullptr, json, true)) {
++        ESP_LOGW(TAG, "voice note prelude not sent");
++    }
++    cJSON_free(json);
++}
++
+ /* Moves the mic into the note request; on release, sends the rest and waits for the reply. */
+ static bool record_note(void)
+ {
++    if (!s_turn.note_open) {
++        size_t have = xStreamBufferBytesAvailable(s_in);
++        if (!s_turn.end_requested && have < NOTE_OPEN_BYTES) {
++            return true;   /* could still be a tap */
++        }
++        if (have < NOTE_MIN_BYTES) {
++            mark(M_RELEASE);
++            turn_fail("DIDN'T CATCH THAT");
++            return true;
++        }
++        send_prelude();
++        if (!open_note()) {
++            return false;
++        }
++        s_turn.note_open = true;
++    }
+     for (;;) {
+         size_t room = NOTE_PART_BYTES - s_turn.note_len;
+         size_t left = NOTE_MAX_BYTES - s_turn.pcm_bytes;
+@@ -1307,6 +1352,11 @@ static int bind_msg(const char *id, cJSON *payload)
+     if (!parent) {
+         parent = cJSON_GetStringValue(cJSON_GetObjectItem(payload, "parent_message_id"));
+     }
++    /* Muse's answer to the prelude message isn't the note's reply. */
++    if (parent && s_turn.prelude_id[0] && !strcmp(parent, s_turn.prelude_id)) {
++        muse_chat_reject(&s_turn.rejected, id);
++        return -1;
++    }
+     /* Once the ack names our message, replies to anything else are someone else's. */
+     if (parent && parent[0] && s_turn.acked && !is_user_id(parent) && find_msg(parent) < 0) {
+         muse_chat_reject(&s_turn.rejected, id);
+@@ -1743,7 +1793,8 @@ static void stream_data(stream_t *s, ConstByteSpan data)
+     case K_DICT:
+         feed_lines(s, data.data(), data.size(), on_dictation_line);
+         break;
+-    case K_CHAT: {
++    case K_CHAT:
++    case K_PRELUDE: {
+         size_t take = data.size() < s->cap - 1 - s->len ? data.size() : s->cap - 1 - s->len;
+         memcpy(s->line + s->len, data.data(), take);
+         s->len += take;
+@@ -1783,6 +1834,20 @@ static bool stream_end(stream_t *s, bool ok)
+     case K_TTS:
+         tts_end(s, ok);
+         break;
++    case K_PRELUDE: {
++        /* Note the prelude's id so Muse's reply to it isn't taken for the note's. */
++        s->line[s->len] = '\0';
++        cJSON *root = ok ? cJSON_Parse(s->line) : nullptr;
++        cJSON *result = cJSON_GetObjectItem(root, "result");
++        const char *id = cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_IsObject(result) ? result : root, "message_id"));
++        if (id) {
++            strlcpy(s_turn.prelude_id, id, sizeof(s_turn.prelude_id));
++        }
++        ESP_LOGI(TAG, "voice note prelude %s%s", ok ? "sent: message " : "failed", id ? id : "");
++        cJSON_Delete(root);
++        close_stream(s);
++        break;
++    }
+     default:
+         break;
+     }

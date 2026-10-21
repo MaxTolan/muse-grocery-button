@@ -21,12 +21,13 @@ idf_component_register(
 )
 
 # Issue #2: every message to Muse starts with the source tag (grocery_source.h).
-# Voice notes carry CONFIG_MUSE_VOICE_NOTE_TEXT, so refuse a build without it.
+# Voice notes are labelled by the text message sent just ahead of each one
+# (CONFIG_MUSE_VOICE_NOTE_PRELUDE), so refuse a build without the tag there.
 if(CONFIG_GROCERY_BUTTON AND NOT CMAKE_BUILD_EARLY_EXPANSION)
     file(STRINGS "${COMPONENT_DIR}/include/grocery_source.h" _tag_line REGEX "^#define GROCERY_SOURCE_TAG ")
     string(REGEX REPLACE "^#define GROCERY_SOURCE_TAG \"(.*)\"$" "\\1" _tag "${_tag_line}")
-    string(FIND "${CONFIG_MUSE_VOICE_NOTE_TEXT}" "${_tag} " _at)
+    string(FIND "${CONFIG_MUSE_VOICE_NOTE_PRELUDE}" "${_tag} " _at)
     if(NOT _at EQUAL 0)
-        message(FATAL_ERROR "CONFIG_MUSE_VOICE_NOTE_TEXT must start with \"${_tag} \" (issue #2); it's \"${CONFIG_MUSE_VOICE_NOTE_TEXT}\"")
+        message(FATAL_ERROR "CONFIG_MUSE_VOICE_NOTE_PRELUDE must start with \"${_tag} \" (issue #2); it's \"${CONFIG_MUSE_VOICE_NOTE_PRELUDE}\"")
     endif()
 endif()

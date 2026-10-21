@@ -1,7 +1,8 @@
 /*
  * The source tag on every message the button sends to Muse (issue #2): the
- * voice notes (CONFIG_MUSE_VOICE_NOTE_TEXT, checked at build time by this
- * component's CMakeLists.txt) and the outbox's item batches. Always the same
+ * text message sent just ahead of each voice note (CONFIG_MUSE_VOICE_NOTE_PRELUDE,
+ * checked at build time by this component's CMakeLists.txt; Muse strips text
+ * from the note itself) and the outbox's item batches. Always the same
  * string, always first, followed by one space, so Muse can key on it. It
  * labels the message, not the groceries: it's never spoken, shown on the
  * screen, or put in an item.
