@@ -21,6 +21,7 @@
 #define LV_FONT_DEFAULT &lv_font_montserrat_20
 
 #define LV_USE_THEME_DEFAULT 1
+#define LV_USE_CANVAS 1   /* Jollybot */
 #define LV_USE_SDL 0
 #define LV_USE_DRAW_SDL 0
 

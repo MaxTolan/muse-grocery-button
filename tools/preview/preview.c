@@ -165,9 +165,17 @@ int main(int argc, char **argv)
     grocery_ui_create(scr);
 
     const shot_t shots[] = {
-        { "ready", { .screen = GROCERY_SCREEN_READY, .battery_pct = 82 } },
+        /* Now: Muse voice notes, text replies. */
+        { "idle", { .screen = GROCERY_SCREEN_IDLE, .battery_pct = 82, .t = 1.0f } },
         { "listening", { .screen = GROCERY_SCREEN_LISTENING, .progress = 0.35f, .level = 0.7f, .battery_pct = 82 } },
-        { "thinking", { .screen = GROCERY_SCREEN_THINKING, .battery_pct = 82 } },
+        { "thinking", { .screen = GROCERY_SCREEN_THINKING, .battery_pct = 82, .detail = "\"Eggs and Fairlife milk\"" } },
+        { "reply", { .screen = GROCERY_SCREEN_REPLY, .battery_pct = 82,
+                     .reply = "Added eggs and Fairlife skim milk to your Kroger list." } },
+        { "idle-status", { .screen = GROCERY_SCREEN_IDLE, .battery_pct = 12, .t = 2.4f, .detail = "No Wi-Fi" } },
+        { "setup", { .screen = GROCERY_SCREEN_SETUP, .battery_pct = 60, .charging = true,
+                     .detail = "In the Muse app: Settings > Devices > Add Device, then pick MuseGadget-42464C." } },
+        /* With Google speech (issue #1). */
+        { "ready", { .screen = GROCERY_SCREEN_READY, .battery_pct = 82 } },
         { "added-kroger", { .screen = GROCERY_SCREEN_ADDED, .store = GROCERY_STORE_KROGER,
                             .item = "Fairlife skim milk, 52 ounce", .battery_pct = 82 } },
         { "ask-store", { .screen = GROCERY_SCREEN_ASK_STORE, .item = "Eggs", .battery_pct = 82 } },
@@ -178,8 +186,6 @@ int main(int argc, char **argv)
         { "connecting", { .screen = GROCERY_SCREEN_CONNECTING, .battery_pct = 82 } },
         { "offline", { .screen = GROCERY_SCREEN_OFFLINE, .detail = "No Wi-Fi", .battery_pct = 82 } },
         { "low-battery", { .screen = GROCERY_SCREEN_LOW_BATTERY, .battery_pct = 4 } },
-        { "setup", { .screen = GROCERY_SCREEN_SETUP, .battery_pct = 60, .charging = true,
-                     .detail = "In the Muse app: Settings > Devices > Add Device, then pick MuseGadget-3F2A1C." } },
     };
     const int n = (int)(sizeof(shots) / sizeof(shots[0]));
     const int rows = (n + COLS - 1) / COLS;

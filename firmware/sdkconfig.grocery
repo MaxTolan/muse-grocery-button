@@ -4,11 +4,21 @@
 # The grocery screen, voice loop and voice inbox (components/grocery_button).
 CONFIG_GROCERY_BUTTON=y
 
+# For now a press goes to Muse as a voice note and Muse's reply shows as text.
+# The Google speech path (on-device transcription and spoken script) is parked
+# in issue #1.
+# CONFIG_GROCERY_GOOGLE_SPEECH is not set
+
+# Sent with each voice note (SDK patch 0005) so Muse knows what it's for and
+# keeps the reply short enough for the round screen. No double quotes.
+CONFIG_MUSE_VOICE_NOTE_TEXT="Grocery button on my fridge: this voice note is a grocery item for my Costco or Kroger list. Reply in one short sentence."
+
 # The status screen's title size, on top of the SDK's 14/16/20/28.
 CONFIG_LV_FONT_MONTSERRAT_40=y
 
-# The speaker amp's enable (the BSP's BSP_POWER_AMP_IO): held low through deep
-# sleep so the amp stays off. GPIO46 is a strapping pin whose safe level is low.
+# Google speech only: the speaker amp's enable (the BSP's BSP_POWER_AMP_IO),
+# held low through deep sleep so the amp stays off. GPIO46 is a strapping pin
+# whose safe level is low.
 CONFIG_GROCERY_AMP_GPIO=46
 
 # Waking from deep sleep is a full boot, and the owner is already talking:

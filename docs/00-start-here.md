@@ -60,8 +60,9 @@ power management. It does NOT manage grocery lists, prices, or orders.
 
 ## Firmware status (Oct 21, 2026)
 
-The firmware is written and builds; the open questions are answered. See `06-firmware.md` for the
-decisions, the design, setup, and what still needs checking on the board.
+The board is flashed and online: presses go to Muse as voice notes and the reply shows as text.
+The Google speech path is written but parked (issue #1). See `06-firmware.md` for what runs now,
+the decisions, the design, setup, and what still needs checking on the board.
 
 ## How to work
 

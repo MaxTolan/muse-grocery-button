@@ -5,6 +5,8 @@
  */
 #include "grocery_ui.h"
 
+#include "grocery_mascot.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -32,8 +34,14 @@
 #define Y_SUB 62
 #define Y_ITEM 122
 #define Y_ITEM_NO_SUB 78
+/* The idle screen: Jollybot above centre, a status line and the hint below. */
+#define MASCOT_PX 256
+#define Y_MASCOT -34
+#define Y_STATUS 128
+#define Y_HINT 162
 
 static lv_obj_t *s_root, *s_ring, *s_icon, *s_title, *s_sub, *s_item, *s_battery;
+static lv_obj_t *s_mascot, *s_status, *s_hint, *s_reply;
 
 static lv_obj_t *label(lv_obj_t *parent, const lv_font_t *font, int width, int y)
 {
@@ -78,6 +86,16 @@ void grocery_ui_create(lv_obj_t *parent)
     s_sub = label(s_root, FONT_SUB, 320, Y_SUB);
     s_item = label(s_root, FONT_ITEM, 300, Y_ITEM);
     s_battery = label(s_root, FONT_SMALL, 120, -186);
+
+    s_mascot = grocery_mascot_create(s_root, MASCOT_PX);
+    if (s_mascot) {
+        lv_obj_align(s_mascot, LV_ALIGN_CENTER, 0, Y_MASCOT);
+    }
+    s_status = label(s_root, FONT_ITEM, 300, Y_STATUS);
+    s_hint = label(s_root, FONT_SMALL, 300, Y_HINT);
+    lv_obj_set_style_text_color(s_hint, lv_color_hex(COLOR_DIM), 0);
+    s_reply = label(s_root, FONT_SUB, 340, 0);   /* big enough to read across the kitchen */
+    lv_obj_set_style_text_line_space(s_reply, 2, 0);
     lv_obj_set_style_text_color(s_battery, lv_color_hex(COLOR_DIM), 0);
 
 }
@@ -135,6 +153,36 @@ void grocery_ui_update(const grocery_ui_state_t *st)
     }
     draw_battery(st);
 
+    /* Waiting: Jollybot, a status line if there's news, and how to talk. */
+    bool idle = st->screen == GROCERY_SCREEN_IDLE;
+    bool reply = st->screen == GROCERY_SCREEN_REPLY;
+    if (s_mascot) {
+        show(s_mascot, idle);
+        if (idle) {
+            grocery_mascot_pose_t pose = { .t = st->t, .happy = st->happy };
+            grocery_mascot_draw(s_mascot, &pose);
+        }
+    }
+    show(s_status, idle && st->detail[0]);
+    show(s_hint, idle);
+    if (idle) {
+        set_text(s_status, st->detail);
+        set_text(s_hint, "Hold the top button to talk");
+        lv_obj_align(s_hint, LV_ALIGN_CENTER, 0, st->detail[0] ? Y_HINT : (Y_STATUS + Y_HINT) / 2);
+    }
+    show(s_reply, reply);
+    if (reply) {
+        set_text(s_reply, st->reply);
+    }
+    show(s_icon, !idle && !reply);
+    show(s_title, !idle && !reply);
+    show(s_sub, !idle && !reply);
+    show(s_item, !idle && !reply);
+    if (idle || reply) {
+        show(s_ring, false);
+        return;
+    }
+
     const char *icon = "", *title = "", *sub = "", *item = "";
     uint32_t icon_color = COLOR_TEXT, sub_color = COLOR_DIM;
     char title_buf[48];
@@ -163,6 +211,7 @@ void grocery_ui_update(const grocery_ui_state_t *st)
     case GROCERY_SCREEN_THINKING:
         dots(title_buf, sizeof(title_buf), "Thinking");
         title = title_buf;
+        item = st->detail;   /* what Muse heard, once it says */
         break;
     case GROCERY_SCREEN_ADDED:
         icon = LV_SYMBOL_OK;
@@ -193,6 +242,9 @@ void grocery_ui_update(const grocery_ui_state_t *st)
         icon_color = COLOR_GREEN;
         title = "Got it";
         break;
+    case GROCERY_SCREEN_IDLE:
+    case GROCERY_SCREEN_REPLY:
+        break;   /* drawn above */
     case GROCERY_SCREEN_LOW_BATTERY:
         icon = LV_SYMBOL_BATTERY_EMPTY;
         icon_color = COLOR_RED;

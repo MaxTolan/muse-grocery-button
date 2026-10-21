@@ -23,10 +23,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(lvgl)
 find_package(ZLIB REQUIRED)
 
+# Jollybot: the SDK's pixel avatar, as on the device.
+set(SDK_ESP32_DIR "${REPO_DIR}/third_party/muse-gadget-sdk/esp32")
 add_executable(grocery_preview
     preview.c
     "${COMPONENT_DIR}/grocery_ui.c"
+    "${COMPONENT_DIR}/grocery_mascot.c"
     "${COMPONENT_DIR}/grocery_parse.c"
+    "${SDK_ESP32_DIR}/avatar/muse_pixel.c"
 )
-target_include_directories(grocery_preview PRIVATE "${COMPONENT_DIR}/include")
+target_include_directories(grocery_preview PRIVATE "${COMPONENT_DIR}/include" "${SDK_ESP32_DIR}/components/muse")
 target_link_libraries(grocery_preview PRIVATE lvgl::lvgl ZLIB::ZLIB m)

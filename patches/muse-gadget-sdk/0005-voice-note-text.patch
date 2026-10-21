@@ -1,0 +1,44 @@
+diff --git a/esp32/components/muse/Kconfig b/esp32/components/muse/Kconfig
+index 0c18ced..0171188 100644
+--- a/esp32/components/muse/Kconfig
++++ b/esp32/components/muse/Kconfig
+@@ -159,6 +159,16 @@ menu "Muse"
+             GPIO, and set that GPIO here. -1 leaves push-to-talk recording
+             silence.
+ 
++    config MUSE_VOICE_NOTE_TEXT
++        string "Text sent with each voice note"
++        depends on MUSE_ENABLED
++        default ""
++        help
++            Goes in the chat message alongside the recording, so Muse knows
++            where a voice note comes from (e.g. "From the kitchen button").
++            Plain text: no double quotes or backslashes (it's placed in JSON
++            as is).
++
+     config MUSE_HATCH
+         bool "Muse's own voice session"
+         depends on MUSE_ENABLED
+diff --git a/esp32/components/muse/muse_chat_priv.h b/esp32/components/muse/muse_chat_priv.h
+index 436a78f..9d4cca6 100644
+--- a/esp32/components/muse/muse_chat_priv.h
++++ b/esp32/components/muse/muse_chat_priv.h
+@@ -67,9 +67,17 @@ static inline void muse_chat_reject(muse_chat_rejected_t *rejected, const char *
+     memcpy(rejected->ids[rejected->count++], id, len + 1);
+ }
+ 
++/* Text that goes with each voice note (Kconfig); "" on host builds without sdkconfig. */
++#if __has_include("sdkconfig.h")
++#include "sdkconfig.h"
++#endif
++#ifndef CONFIG_MUSE_VOICE_NOTE_TEXT
++#define CONFIG_MUSE_VOICE_NOTE_TEXT ""
++#endif
++
+ /* A voice note is a POST /chat/stream body: NOTE_HEAD, a base64 WAV, NOTE_TAIL. */
+ #define MUSE_HATCH_NOTE_HEAD \
+-    "{\"message\":\"\",\"output_modality\":\"text\",\"items\":[{\"type\":\"file\"," \
++    "{\"message\":\"" CONFIG_MUSE_VOICE_NOTE_TEXT "\",\"output_modality\":\"text\",\"items\":[{\"type\":\"file\"," \
+     "\"mime_type\":\"audio/wav\",\"filename\":\"voice_note.wav\",\"data_base64\":\""
+ #define MUSE_HATCH_NOTE_TAIL "\"}]}"
+ #define MUSE_HATCH_WAV_HEADER 44

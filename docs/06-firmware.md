@@ -1,10 +1,32 @@
 # Firmware: how it's built, and why
 
-Status as of Oct 21, 2026: the firmware is written, builds for the 1.75C, and passes its host
-tests. The board hasn't arrived yet, so **nothing has run on hardware**. See "Not yet verified
-on the board" at the end before trusting any of it.
+## Right now (Oct 21, 2026): Muse voice notes, text replies
 
-## Decisions (owner, Oct 21, 2026)
+The board is flashed and online. For now the button uses the Gadgets SDK's own voice loop, and
+the Google speech path below is parked in
+[issue #1](https://github.com/MaxTolan/muse-grocery-button/issues/1)
+(`CONFIG_GROCERY_GOOGLE_SPEECH`, off):
+
+- **Waiting:** Jollybot in pixel art (the SDK's avatar in the todo display's top hat, ported from
+  muse-todo-display), with "Hold the top button to talk" and any status line ("No Wi-Fi").
+- **Hold the top button and speak:** "Listening..." with a ring around the rim. On release the
+  clip goes to Muse as a voice note, with the text "Grocery button on my fridge: this voice note is
+  a grocery item for my Costco or Kroger list. Reply in one short sentence." (SDK patch 0005,
+  `CONFIG_MUSE_VOICE_NOTE_TEXT`).
+- **Muse transcribes it and replies.** The screen shows "Thinking..." (with what Muse heard, once
+  it says), then the reply as text, paged at reading pace. Muse files the item agent-side.
+- No speech out, and power is the SDK's own: the screen sleeps after 2 minutes idle, then light
+  sleep. Deep sleep comes with the Google path.
+
+The SDK's voice loop caps a note at 15 s, but the AXP2101 cuts power after a 10 s hold of the top
+button, so keep presses short.
+
+## The Google speech design (parked, issue #1)
+
+Status: written and builds, but switched off and never run on the board. See "Not yet verified on
+the board" at the end before trusting any of it.
+
+### Decisions (owner, Oct 21, 2026)
 
 These answer `05-open-questions.md`.
 
@@ -24,7 +46,7 @@ the transcript, and Muse doesn't speak gadget replies. Muse would run the whole 
 wait on the agent. Google speech keeps the script on the device, fast and predictable, and Muse gets
 only the confirmed items.
 
-## How it works
+### How it works
 
 ```
 hold PWR ──► record 16 kHz mono (pre-roll, light noise gate, 8 s cap)
@@ -57,12 +79,12 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
   sleeping, the button waits up to 20 s for Muse to take what's waiting; anything left goes next
   time. Muse files the items and runs the Kroger $40 check. List management stays agent-side.
 - **The screen** (`grocery_ui.c`) is status only: Listening (with a ring showing recording time),
-  Thinking, Added + store, the store question, Got it, and a small battery icon. Previews are in
-  `previews/`.
+  Thinking, Added + store, the store question, Got it, and a small battery icon. Previews of every
+  state (both modes) are in `previews/`.
 
 ![Screen states](previews/contact-sheet.png)
 
-## Power
+### Power
 
 - On battery, a session ends in **deep sleep**. The talk button (PWR, which also reaches GPIO3)
   is the wake source, and the press that wakes the button is the one it records: holding PWR
@@ -74,7 +96,7 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
   charge." At 5% or less it says the battery's too low and sleeps rather than start an item.
 - The speaker amp's enable (GPIO46) is held low through deep sleep.
 
-## Departures from the spec
+### Departures from the spec
 
 - **Recording cap is 8 s, not ~15 s.** The talk button is PWR, and the AXP2101 cuts the power
   after PWR is held 10 s. That's its longest setting, so a 15 s hold would turn the board off.
@@ -85,7 +107,7 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
 - **The SDK's settings screen is still a swipe away** (Wi-Fi, volume). It's the SDK's, not part
   of the grocery UI. Hiding it would mean another SDK patch.
 
-## Setup
+### Setup
 
 1. **ESP-IDF v6.0.1** at `~/esp/esp-idf-v6.0.1` (or set `IDF_EXPORT`), as for the todo display.
 2. **Muse SDK token**: put it in `sdk_token.local` (one line, `mgst_…`; the same token as the
@@ -94,7 +116,8 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
    and the *Cloud Text-to-Speech API*, create an API key, and **restrict it to those two APIs**.
    Put it in `google_api_key.local` (one line). The key is built into the firmware, so restricting
    it limits what a lost device could cost.
-4. Build and flash: `tools/fw.sh flash` (USB-C, case closed). `tools/fw.sh monitor` shows the log.
+4. Set `CONFIG_GROCERY_GOOGLE_SPEECH=y` in `firmware/sdkconfig.grocery`. Then build and flash:
+   `tools/fw.sh flash` (USB-C, case closed). `tools/fw.sh monitor` shows the log.
 5. Pair: Muse app > Settings > Devices > Add Device, pick `MuseGadget-…` (the screen shows the
    name), and press the top button when asked to confirm. That also sets the Wi-Fi.
 6. Optional: tell Muse once that messages starting "Grocery button (fridge)" are items for the
@@ -102,7 +125,7 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
 
 The voice can be changed with `CONFIG_GROCERY_TTS_VOICE` (default `en-US-Neural2-F`).
 
-## Code map
+### Code map
 
 | Path | What |
 | --- | --- |
@@ -113,22 +136,23 @@ The voice can be changed with `CONFIG_GROCERY_TTS_VOICE` (default `en-US-Neural2
 | `components/grocery_button/google_speech.c` | Speech-to-Text / Text-to-Speech over HTTPS |
 | `components/grocery_button/grocery_voice.c` | The push-to-talk loop and session timers |
 | `components/grocery_button/grocery_ui.c` | The round status screen (LVGL) |
+| `components/grocery_button/grocery_mascot.c` | Jollybot in a top hat (from the todo display) |
 | `components/grocery_button/grocery_glue.c` | SDK hooks, inbox sending, flash, deep sleep |
 | `patches/muse-gadget-sdk/` | Our SDK changes; `tools/fw.sh` applies them to the pinned submodule |
 | `firmware/sdkconfig.grocery` | Build settings on top of the SDK's 1.75C overlay |
 
 SDK patches: 0001–0003 are the todo display's (extra config overlays, `muse_ext` app hooks, a
 Wi-Fi fix). 0004 lets the app replace the SDK's voice loop and reports Muse's acknowledgement of a
-typed message.
+typed message. 0005 adds the text sent with each voice note.
 
-## Tests
+### Tests
 
 - `tools/test.sh`: host tests for the script, parsing, outbox and speech helpers (sanitizers on).
 - `tools/preview.sh`: renders every screen state to `docs/previews/`.
 - The SDK's own host tests pass with the patches applied
   (`python3 -m unittest discover -s tests` in `third_party/muse-gadget-sdk/esp32`).
 
-## Not yet verified on the board
+### Not yet verified on the board
 
 Everything below needs the 1.75C on the bench:
 

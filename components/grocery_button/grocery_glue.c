@@ -1,10 +1,17 @@
 /*
- * Device glue for the grocery button (ESP-IDF only): hooks the voice loop,
- * the round screen and the voice inbox into the Muse SDK through muse_ext.h.
+ * Device glue for the grocery button (ESP-IDF only): hooks the round screen
+ * (and, with Google speech, the voice loop and voice inbox) into the Muse SDK
+ * through muse_ext.h.
  *
+ *   - ui_build: the status screen on the face tile; the SDK's own screens
+ *     handle pairing and Wi-Fi setup (Muse app > Settings > Devices)
+ *   - for now (CONFIG_GROCERY_GOOGLE_SPEECH off) the SDK's voice loop runs:
+ *     a press goes to Muse as a voice note, and the screen follows its state
+ *     (muse_state): Jollybot while waiting, then "Listening...",
+ *     "Thinking...", and Muse's reply text
+ *
+ * With Google speech on (issue #1):
  *   - voice_start: the SDK's push-to-talk loop is replaced by grocery_voice.c
- *   - ui_build: the status screen on the face tile once paired; the SDK's own
- *     screens handle pairing and Wi-Fi setup (Muse app > Settings > Devices)
  *   - the voice inbox: confirmed items wait in flash (grocery_outbox.c) and go
  *     to the owner's Muse as one typed chat message; they leave the outbox
  *     only on Muse's acknowledgement ("@chat ack", SDK patch 0004)
@@ -53,7 +60,9 @@ static const char *TAG = "grocery";
 #define ACK_TIMEOUT_US (30 * 1000000LL)   /* sent, but no word from Muse */
 #define RETRY_MIN_US (15 * 1000000LL)
 #define RETRY_MAX_US (120 * 1000000LL)
+#if CONFIG_GROCERY_GOOGLE_SPEECH
 #define TALK_GPIO ((gpio_num_t)CONFIG_GROCERY_TALK_GPIO)
+#endif
 
 /* ---- screen state: written by the voice task, drawn by the LVGL task ---- */
 
@@ -83,15 +92,17 @@ void grocery_view_listening(float progress, float level)
     taskEXIT_CRITICAL(&s_view_mux);
 }
 
-/* ---- power and pairing ---- */
-
-static bool s_woke_ext1;   /* this boot is a wake from deep sleep by the talk button */
-static bool s_woke_by_press;
-
 bool grocery_paired(void)
 {
     return muse_hatch_configured();
 }
+
+#if CONFIG_GROCERY_GOOGLE_SPEECH
+
+/* ---- power ---- */
+
+static bool s_woke_ext1;   /* this boot is a wake from deep sleep by the talk button */
+static bool s_woke_by_press;
 
 bool grocery_battery_low(void)
 {
@@ -335,6 +346,8 @@ void grocery_sleep(void)
     esp_deep_sleep_start();
 }
 
+#endif /* CONFIG_GROCERY_GOOGLE_SPEECH */
+
 /* ---- screen ---- */
 
 /* The SDK's own screens take over while the Muse app is pairing. */
@@ -352,6 +365,78 @@ static void setup_hint(char *out, size_t cap)
              ble.name[0] ? ble.name : "this button");
 }
 
+#if !CONFIG_GROCERY_GOOGLE_SPEECH
+/* The SDK's status captions are capitals ("NO WI-FI"): write them as a sentence. */
+static void sentence_case(const char *in, char *out, size_t cap)
+{
+    size_t o = 0;
+    for (; *in && o + 1 < cap; in++) {
+        char c = *in;
+        out[o] = (char)(o == 0 ? c : (c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c));
+        o++;
+    }
+    out[o] = '\0';
+    static const char *const FIX[][2] = { { "wi-fi", "Wi-Fi" }, { "muse", "Muse" } };
+    for (size_t i = 0; i < sizeof(FIX) / sizeof(FIX[0]); i++) {
+        char *p = strstr(out, FIX[i][0]);
+        if (p) {
+            memcpy(p, FIX[i][1], strlen(FIX[i][1]));
+        }
+    }
+}
+
+static bool has_lower(const char *s)
+{
+    for (; *s; s++) {
+        if (*s >= 'a' && *s <= 'z') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* The screen from the SDK's voice loop: its mode, and its caption (status, transcript or reply). */
+static void state_from_sdk(grocery_ui_state_t *st)
+{
+    static char caption[MUSE_CAPTION_MAX];
+    static uint32_t version;
+    muse_state_caption(caption, sizeof(caption), &version);
+    memset(st, 0, sizeof(*st));
+    switch (muse_state_mode(NULL)) {
+    case MUSE_MODE_LISTENING:
+        st->screen = GROCERY_SCREEN_LISTENING;
+        st->progress = muse_state_progress();
+        st->level = muse_state_level();
+        break;
+    case MUSE_MODE_THINKING:
+        if (caption[0] == '"') {
+            st->screen = GROCERY_SCREEN_THINKING;   /* what Muse heard */
+            strlcpy(st->detail, caption, sizeof(st->detail));
+        } else if (has_lower(caption)) {
+            st->screen = GROCERY_SCREEN_REPLY;      /* the reply's opening, before it's paced out */
+            strlcpy(st->reply, caption, sizeof(st->reply));
+        } else {
+            st->screen = GROCERY_SCREEN_THINKING;   /* "SENDING VOICE NOTE" and the like */
+        }
+        break;
+    case MUSE_MODE_SPEAKING:
+        st->screen = GROCERY_SCREEN_REPLY;          /* the page being shown */
+        strlcpy(st->reply, caption, sizeof(st->reply));
+        break;
+    default:
+        st->screen = GROCERY_SCREEN_IDLE;
+        if (caption[0]) {
+            if (has_lower(caption)) {
+                strlcpy(st->detail, caption, sizeof(st->detail));
+            } else {
+                sentence_case(caption, st->detail, sizeof(st->detail));   /* "No Wi-Fi", "Hold longer to talk" */
+            }
+        }
+        break;
+    }
+}
+#endif
+
 static void frame(lv_timer_t *t)
 {
     (void)t;
@@ -368,9 +453,15 @@ static void frame(lv_timer_t *t)
         return;
     }
     grocery_ui_state_t st;
+#if CONFIG_GROCERY_GOOGLE_SPEECH
     taskENTER_CRITICAL(&s_view_mux);
     st = s_view;
     taskEXIT_CRITICAL(&s_view_mux);
+#else
+    state_from_sdk(&st);
+#endif
+    st.t = esp_timer_get_time() / 1e6f;
+    st.happy = muse_state_happiness();
     muse_power_t p = muse_state_power();
     st.battery_pct = p.battery_pct;
     st.charging = p.charging;
@@ -388,6 +479,8 @@ static void ui_build(lv_obj_t *face)
     lv_obj_set_size(s_root, lv_pct(100), lv_pct(100));
     lv_obj_remove_flag(s_root, LV_OBJ_FLAG_SCROLLABLE);
     grocery_ui_create(s_root);
+    /* Reply pages sized to the round screen's text area, not the SDK's captions. */
+    muse_state_set_page(GROCERY_UI_REPLY_COLS, GROCERY_UI_REPLY_LINES);
     s_visible = true;
     lv_timer_create(frame, FRAME_MS, NULL);
     ESP_LOGI(TAG, "status screen built");
@@ -400,6 +493,7 @@ static bool ui_covers_face(void)
 
 /* ---- start ---- */
 
+#if CONFIG_GROCERY_GOOGLE_SPEECH
 static int voice_start(QueueHandle_t queue)
 {
     if (!CONFIG_GROCERY_GOOGLE_API_KEY[0]) {
@@ -413,17 +507,21 @@ static int voice_start(QueueHandle_t queue)
     }
     return grocery_voice_start(queue);
 }
+#endif
 
 static const muse_ext_t EXT = {
     .ui_build = ui_build,
     .ui_covers_face = ui_covers_face,
+#if CONFIG_GROCERY_GOOGLE_SPEECH
     .chat_event = chat_event,
     .voice_start = voice_start,
+#endif
 };
 
 /* Registered before app_main, so it's in place before the UI and voice start. */
 __attribute__((constructor)) static void grocery_register(void)
 {
+#if CONFIG_GROCERY_GOOGLE_SPEECH
     s_lock = xSemaphoreCreateRecursiveMutex();
     if (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_EXT1)) {
         /* The wake pin is still routed to the RTC; hand it back before the board reads it. */
@@ -434,6 +532,7 @@ __attribute__((constructor)) static void grocery_register(void)
     gpio_hold_dis((gpio_num_t)CONFIG_GROCERY_AMP_GPIO);
     gpio_deep_sleep_hold_dis();
 #endif
+#endif /* CONFIG_GROCERY_GOOGLE_SPEECH */
     muse_ext_register(&EXT);
 }
 

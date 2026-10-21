@@ -4,9 +4,15 @@
 #
 # WHOLE_ARCHIVE: grocery_glue.c registers itself with the SDK (muse_ext.h)
 # from a constructor, and nothing else references it.
+set(srcs "grocery_parse.c" "grocery_script.c" "grocery_outbox.c" "grocery_speech_util.c"
+         "grocery_ui.c" "grocery_mascot.c" "grocery_glue.c")
+# The Google voice path (issue #1): off until it's been tried on the board.
+if(CONFIG_GROCERY_GOOGLE_SPEECH)
+    list(APPEND srcs "google_speech.c" "grocery_voice.c")
+endif()
+
 idf_component_register(
-    SRCS "grocery_parse.c" "grocery_script.c" "grocery_outbox.c" "grocery_speech_util.c"
-         "grocery_ui.c" "google_speech.c" "grocery_voice.c" "grocery_glue.c"
+    SRCS ${srcs}
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "."
     REQUIRES muse

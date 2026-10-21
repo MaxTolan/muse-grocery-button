@@ -26,11 +26,11 @@ the aluminum case. Zero-solder build. Mounts magnetically on the fridge.
 
 ## Status
 
-Board ordered and paid Oct 2, 2026 — arrives late October. The firmware is written (Oct 21) and
-builds for the 1.75C: hold-to-talk with Google Speech-to-Text, the spoken script with Google
-Text-to-Speech, a voice inbox that sends confirmed items to Muse, and deep sleep between uses.
-It hasn't run on the board yet. Start at `docs/06-firmware.md`; build with `tools/fw.sh build`,
-test with `tools/test.sh`.
+Board arrived and flashed Oct 21, 2026. For now a press goes to Muse as a voice note and Muse's
+reply shows as text on the round screen, with a pixel-art Jollybot while it waits. On-device
+Google speech (spoken replies, the conversation script, deep sleep) is written but parked in
+[issue #1](https://github.com/MaxTolan/muse-grocery-button/issues/1). Start at
+`docs/06-firmware.md`; build and flash with `tools/fw.sh flash`, test with `tools/test.sh`.
 
 ## How it fits the owner's system
 
