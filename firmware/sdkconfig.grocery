@@ -9,9 +9,11 @@ CONFIG_GROCERY_BUTTON=y
 # in issue #1.
 # CONFIG_GROCERY_GOOGLE_SPEECH is not set
 
-# Sent with each voice note (SDK patch 0005) so Muse knows what it's for and
-# keeps the reply short enough for the round screen. No double quotes.
-CONFIG_MUSE_VOICE_NOTE_TEXT="Grocery button on my fridge: this voice note is a grocery item for my Costco or Kroger list. Reply in one short sentence."
+# Sent with each voice note (SDK patch 0005). It starts with the source tag,
+# "[fridge-button] " (issue #2, grocery_source.h; the build fails without it),
+# then says what the note is for and keeps the reply short enough for the
+# round screen. No double quotes.
+CONFIG_MUSE_VOICE_NOTE_TEXT="[fridge-button] Voice note from the grocery button on my refrigerator: a grocery item for my Costco or Kroger list. Reply in one short sentence."
 
 # The status screen's title size, on top of the SDK's 14/16/20/28.
 CONFIG_LV_FONT_MONTSERRAT_40=y

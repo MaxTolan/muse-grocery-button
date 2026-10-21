@@ -11,6 +11,7 @@
 #include "grocery_outbox.h"
 #include "grocery_parse.h"
 #include "grocery_script.h"
+#include "grocery_source.h"
 #include "grocery_speech_util.h"
 
 static int s_failed, s_run;
@@ -246,7 +247,7 @@ static void test_outbox(void)
     CHECK(!grocery_outbox_add(&ob, "", GROCERY_STORE_KROGER));
     CHECK(grocery_outbox_add(&ob, "Fairlife skim milk, 52 ounce", GROCERY_STORE_KROGER));
     CHECK(grocery_outbox_message(&ob, msg, sizeof(msg)) == 1);
-    CHECK_STR(msg, "Grocery button (fridge): please put this on my grocery lists.\n- Kroger: Fairlife skim milk, 52 ounce");
+    CHECK_STR(msg, "[fridge-button] Please put this on my Costco/Kroger grocery lists.\n- Kroger: Fairlife skim milk, 52 ounce");
     CHECK(grocery_outbox_add(&ob, "eggs\tand\nham", GROCERY_STORE_COSTCO));
     CHECK(grocery_outbox_message(&ob, msg, sizeof(msg)) == 2);
     CHECK(strstr(msg, "these") && strstr(msg, "\n- Costco: eggs and ham"));
@@ -261,6 +262,15 @@ static void test_outbox(void)
     grocery_outbox_load(&back, "junk\nC\t\nK\tbread");
     CHECK(back.count == 1);
     CHECK_STR(back.e[0].item, "bread");
+
+    /* Issue #2: the tag opens every message, exactly, and never lands in an item. */
+    CHECK(!strncmp(msg, GROCERY_SOURCE_TAG " ", strlen(GROCERY_SOURCE_TAG) + 1));
+    CHECK(strstr(msg + 1, GROCERY_SOURCE_TAG) == NULL);
+    CHECK(strstr(blob, GROCERY_SOURCE_TAG) == NULL);
+    CHECK_STR(grocery_untagged("[fridge-button] Added eggs to Kroger."), "Added eggs to Kroger.");
+    CHECK_STR(grocery_untagged("[fridge-button]: Added eggs."), "Added eggs.");
+    CHECK_STR(grocery_untagged("Added eggs."), "Added eggs.");
+    CHECK(grocery_untagged(NULL) == NULL);
 
     /* Delivery of the first n leaves anything added since. */
     int n = grocery_outbox_message(&ob, msg, sizeof(msg));
@@ -279,6 +289,7 @@ static void test_outbox(void)
     char small[200];
     int k = grocery_outbox_message(&ob, small, sizeof(small));
     CHECK(k > 0 && k < GROCERY_OUTBOX_MAX && strlen(small) < sizeof(small));
+    CHECK(!strncmp(small, GROCERY_SOURCE_TAG " ", strlen(GROCERY_SOURCE_TAG) + 1));   /* split batches too */
 
     /* Items are cut on a character boundary. */
     char wide[300] = "";

@@ -10,9 +10,12 @@ the Google speech path below is parked in
 - **Waiting:** Jollybot in pixel art (the SDK's avatar in the todo display's top hat, ported from
   muse-todo-display), with "Hold the top button to talk" and any status line ("No Wi-Fi").
 - **Hold the top button and speak:** "Listening..." with a ring around the rim. On release the
-  clip goes to Muse as a voice note, with the text "Grocery button on my fridge: this voice note is
-  a grocery item for my Costco or Kroger list. Reply in one short sentence." (SDK patch 0005,
-  `CONFIG_MUSE_VOICE_NOTE_TEXT`).
+  clip goes to Muse as a voice note, with the text "[fridge-button] Voice note from the grocery
+  button on my refrigerator: a grocery item for my Costco or Kroger list. Reply in one short
+  sentence." (SDK patch 0005, `CONFIG_MUSE_VOICE_NOTE_TEXT`).
+- **Source tag:** every message to Muse starts with `[fridge-button] `, voice notes and outbox
+  batches alike, and the tag never reaches the screen, speech or the lists. Convention and rules:
+  `03-conversation-design.md`, "Source tag on every message to Muse" (issue #2).
 - **Muse transcribes it and replies.** The screen shows "Thinking..." (with what Muse heard, once
   it says), then the reply as text, paged at reading pace. Muse files the item agent-side.
 - No speech out, and power is the SDK's own: the screen sleeps after 2 minutes idle, then light
@@ -69,7 +72,7 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
   outbox saved in flash. When Muse is in reach, everything waiting goes as one chat message:
 
   ```
-  Grocery button (fridge): please put these on my grocery lists.
+  [fridge-button] Please put these on my Costco/Kroger grocery lists.
   - Kroger: Fairlife skim milk, 52 ounce
   - Costco: eggs
   ```
@@ -120,8 +123,8 @@ release  ──► Google Speech-to-Text (latest_short, "Costco"/"Kroger" hints)
    `tools/fw.sh flash` (USB-C, case closed). `tools/fw.sh monitor` shows the log.
 5. Pair: Muse app > Settings > Devices > Add Device, pick `MuseGadget-…` (the screen shows the
    name), and press the top button when asked to confirm. That also sets the Wi-Fi.
-6. Optional: tell Muse once that messages starting "Grocery button (fridge)" are items for the
-   Costco/Kroger lists, so it files them without asking.
+6. Optional: tell Muse once that messages starting `[fridge-button]` come from the fridge button
+   and carry items for the Costco/Kroger lists, so it files them without asking.
 
 The voice can be changed with `CONFIG_GROCERY_TTS_VOICE` (default `en-US-Neural2-F`).
 

@@ -43,6 +43,25 @@ Voice-first; the screen is status only:
 - "Added ✓" + store name on confirmation
 - Never full grocery lists on the 1.75" screen — too small, not the point.
 
+## Source tag on every message to Muse
+
+Every message the button sends to Muse starts with the same tag, so Muse can always tell the
+fridge button's messages from the phone's or the todo display's (issue #2):
+
+```
+[fridge-button] <the rest of the message>
+```
+
+- Exactly `[fridge-button]`, then one space, as the first characters of the message text. Always
+  the same string in the same place, so Muse can key on it.
+- On every outbound path: each voice note's message text (`CONFIG_MUSE_VOICE_NOTE_TEXT`) and each
+  outbox batch of confirmed items (`[fridge-button] Please put these on my Costco/Kroger grocery
+  lists.` then one `- Store: item` line per item).
+- It labels the message, not the groceries: never spoken, never shown on the screen (stripped if
+  Muse echoes it), never part of an item or a list entry.
+- Defined once in `components/grocery_button/include/grocery_source.h`. The build fails if the
+  voice-note text doesn't start with it.
+
 ## What NOT to do
 
 - No multi-level menus, no settings trees on the device.

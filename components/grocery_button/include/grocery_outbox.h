@@ -3,7 +3,8 @@
  * submit_item(text, store) lands here; the device glue saves the outbox to
  * flash on every change and sends everything in it as one chat message to
  * the owner's Muse, which files the items on the Costco and Kroger lists.
- * Items leave only once Muse has acknowledged the message, so nothing is
+ * The message starts with GROCERY_SOURCE_TAG (grocery_source.h). Items
+ * leave only once Muse has acknowledged the message, so nothing is
  * lost to a dropped connection, a dead battery or deep sleep.
  *
  * Plain C, no ESP-IDF: the host tests build it.

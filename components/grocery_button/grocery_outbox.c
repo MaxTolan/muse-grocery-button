@@ -1,5 +1,6 @@
 /* The voice inbox's outbox (grocery_outbox.h). */
 #include "grocery_outbox.h"
+#include "grocery_source.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -47,7 +48,7 @@ int grocery_outbox_message(const grocery_outbox_t *ob, char *out, size_t cap)
         }
         return 0;
     }
-    size_t o = (size_t)snprintf(out, cap, "Grocery button (fridge): please put %s on my grocery lists.",
+    size_t o = (size_t)snprintf(out, cap, GROCERY_SOURCE_TAG " Please put %s on my Costco/Kroger grocery lists.",
                                 ob->count == 1 ? "this" : "these");
     int n = 0;
     for (; n < ob->count; n++) {

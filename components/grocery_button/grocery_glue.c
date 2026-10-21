@@ -47,6 +47,7 @@
 
 #include "grocery_device.h"
 #include "grocery_outbox.h"
+#include "grocery_source.h"
 
 #if CONFIG_GROCERY_BUTTON
 
@@ -414,20 +415,20 @@ static void state_from_sdk(grocery_ui_state_t *st)
             strlcpy(st->detail, caption, sizeof(st->detail));
         } else if (has_lower(caption)) {
             st->screen = GROCERY_SCREEN_REPLY;      /* the reply's opening, before it's paced out */
-            strlcpy(st->reply, caption, sizeof(st->reply));
+            strlcpy(st->reply, grocery_untagged(caption), sizeof(st->reply));
         } else {
             st->screen = GROCERY_SCREEN_THINKING;   /* "SENDING VOICE NOTE" and the like */
         }
         break;
     case MUSE_MODE_SPEAKING:
         st->screen = GROCERY_SCREEN_REPLY;          /* the page being shown */
-        strlcpy(st->reply, caption, sizeof(st->reply));
+        strlcpy(st->reply, grocery_untagged(caption), sizeof(st->reply));   /* in case Muse echoes the tag */
         break;
     default:
         st->screen = GROCERY_SCREEN_IDLE;
         if (caption[0]) {
             if (has_lower(caption)) {
-                strlcpy(st->detail, caption, sizeof(st->detail));
+                strlcpy(st->detail, grocery_untagged(caption), sizeof(st->detail));
             } else {
                 sentence_case(caption, st->detail, sizeof(st->detail));   /* "No Wi-Fi", "Hold longer to talk" */
             }
