@@ -1,0 +1,85 @@
+diff --git a/esp32/components/muse/muse_app.c b/esp32/components/muse/muse_app.c
+index 2810bd2..bb5be1a 100644
+--- a/esp32/components/muse/muse_app.c
++++ b/esp32/components/muse/muse_app.c
+@@ -25,6 +25,7 @@
+ #include "muse_board.h"
+ #include "muse_ble.h"
+ #include "muse_chat.h"
++#include "muse_ext.h"
+ #include "muse_input.h"
+ #include "muse_settings.h"
+ #include "muse_state.h"
+@@ -76,13 +77,17 @@ void muse_app_run(const muse_board_t *board)
+     QueueHandle_t q = xQueueCreate(16, sizeof(muse_input_event_t));
+     ESP_ERROR_CHECK(muse_input_start(q));
+ 
+-    /* Let the boot animation (flame ignites, eyes open) play out. */
+-    vTaskDelay(pdMS_TO_TICKS(1400));
++    const muse_ext_t *ext = muse_ext();
++    bool ext_voice = ext && ext->voice_start && board->audio_init;
++    if (!ext_voice) {
++        /* Let the boot animation (flame ignites, eyes open) play out. */
++        vTaskDelay(pdMS_TO_TICKS(1400));
++    }
+     if (!board->audio_init) {
+         ESP_LOGI(TAG, "display-only board: no microphone or speaker");
+         muse_state_set_mode(MUSE_MODE_IDLE);
+         muse_state_set_caption("%s", "");
+-    } else if (muse_voice_start(q) != ESP_OK) {
++    } else if ((ext_voice ? (esp_err_t)ext->voice_start(q) : muse_voice_start(q)) != ESP_OK) {
+         ESP_LOGE(TAG, "voice pipeline unavailable");
+     } else {
+         muse_state_set_mode(MUSE_MODE_IDLE);
+diff --git a/esp32/components/muse/muse_chat.h b/esp32/components/muse/muse_chat.h
+index 170e040..865ec14 100644
+--- a/esp32/components/muse/muse_chat.h
++++ b/esp32/components/muse/muse_chat.h
+@@ -125,7 +125,8 @@ size_t muse_hatch_turn_audio_wait(const int16_t *pcm, size_t frames, int wait_ms
+  * Sends typed text to the chat. The reply isn't spoken or captioned: it goes to
+  * the console as it streams in, however long it is, one line per piece:
+  *   @chat {"seq":N,"type":TYPE,...}
+- * TYPE is "sent" (bytes), "busy" (on: the agent is working), "text" (msg, text),
++ * TYPE is "sent" (bytes), "ack" (Muse has the message), "busy" (on: the agent
++ * is working), "text" (msg, text),
+  * "message_done" (msg, bytes), "done" (messages, complete) or "error" (text).
+  * tools/muse/chat.py reads them. Takes `text` (malloc'd) and frees it. A voice
+  * press ends a typed turn; a typed turn is refused while a voice turn runs.
+diff --git a/esp32/components/muse/muse_chat_session.cpp b/esp32/components/muse/muse_chat_session.cpp
+index 9c99dc0..014ddfb 100644
+--- a/esp32/components/muse/muse_chat_session.cpp
++++ b/esp32/components/muse/muse_chat_session.cpp
+@@ -1495,6 +1495,9 @@ static void on_chat_ack(stream_t *s)
+     s_turn.acked = true;
+     mark(M_ACK);
+     ESP_LOGI(TAG, "chat/stream ack: user message %s", s_turn.user_ids[0]);
++    if (s_turn.text) {
++        muse_hatch_console("ack", nullptr, nullptr);   /* Muse has the typed message */
++    }
+     cJSON_Delete(root);
+     emit(MUSE_HATCH_EV_SENT, nullptr);
+ }
+diff --git a/esp32/components/muse/muse_ext.h b/esp32/components/muse/muse_ext.h
+index 59672f0..1f90837 100644
+--- a/esp32/components/muse/muse_ext.h
++++ b/esp32/components/muse/muse_ext.h
+@@ -17,6 +17,7 @@ extern "C" {
+ 
+ struct _lv_obj_t;
+ struct cJSON;
++struct QueueDefinition;   /* FreeRTOS's QueueHandle_t points to one */
+ 
+ typedef struct {
+     /* After the SDK builds its UI, display lock held: add objects to the
+@@ -32,6 +33,11 @@ typedef struct {
+     /* Every "@chat" line a typed turn reports (muse_hatch_console), from
+      * whichever task reports it: type, then the text (NULL if none). */
+     void (*chat_event)(const char *type, const char *text);
++    /* Replaces the SDK's push-to-talk loop (muse_voice_start) on boards with
++     * audio: called with the input queue (muse_input_event_t items) as soon as
++     * the input task is up, without waiting out the boot animation. Returns 0
++     * (ESP_OK) once running. */
++    int (*voice_start)(struct QueueDefinition *queue);
+ } muse_ext_t;
+ 
+ void muse_ext_register(const muse_ext_t *ext);

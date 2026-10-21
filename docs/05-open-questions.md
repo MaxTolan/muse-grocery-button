@@ -12,3 +12,16 @@
    USB serial config at the bench; the owner can do this once.)
 6. **Cloud function hosting**: where does the transcription relay live? (Owner's call —
    keep it cheap and simple.)
+
+## Answers (owner, Oct 21, 2026)
+
+1. Transcription: **Google Cloud Speech-to-Text**, called from the device.
+2. TTS: **Google Cloud Text-to-Speech**, same key.
+3. Voice-inbox transport: **a chat message to the owner's Muse** through the Gadgets SDK, one per
+   batch of confirmed items, kept in flash until Muse acknowledges it.
+4. **Gadgets SDK**: the 1.75C is its reference board, and it brings Wi-Fi setup and the Muse link.
+5. Wi-Fi provisioning: **the Muse app's pairing** (it sends Wi-Fi over BLE).
+6. Hosting: **none needed**; the device calls Google directly.
+
+Details and reasoning: `06-firmware.md`.
+

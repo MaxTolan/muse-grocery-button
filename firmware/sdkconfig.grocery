@@ -1,0 +1,21 @@
+# Grocery button settings, loaded after the SDK's overlays for the 1.75C
+# (tools/fw.sh passes it to board.sh with MUSE_EXTRA_DEFAULTS).
+
+# The grocery screen, voice loop and voice inbox (components/grocery_button).
+CONFIG_GROCERY_BUTTON=y
+
+# The status screen's title size, on top of the SDK's 14/16/20/28.
+CONFIG_LV_FONT_MONTSERRAT_40=y
+
+# The speaker amp's enable (the BSP's BSP_POWER_AMP_IO): held low through deep
+# sleep so the amp stays off. GPIO46 is a strapping pin whose safe level is low.
+CONFIG_GROCERY_AMP_GPIO=46
+
+# Waking from deep sleep is a full boot, and the owner is already talking:
+# skip the 8 MB PSRAM test and the app image check on that path.
+# CONFIG_SPIRAM_MEMTEST is not set
+CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y
+
+# Google's APIs are reached over plain HTTPS with the certificate bundle.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y

@@ -58,6 +58,11 @@ power management. It does NOT manage grocery lists, prices, or orders.
 - Firmware, audio pipeline, transcription, TTS, and the voice-inbox handoff are all unbuilt.
 - Transcription and TTS providers are NOT chosen yet — see `05-open-questions.md`.
 
+## Firmware status (Oct 21, 2026)
+
+The firmware is written and builds; the open questions are answered. See `06-firmware.md` for the
+decisions, the design, setup, and what still needs checking on the board.
+
 ## How to work
 
 - Ask the owner about anything in `05-open-questions.md` before guessing.

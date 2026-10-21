@@ -21,13 +21,16 @@ the aluminum case. Zero-solder build. Mounts magnetically on the fridge.
 | `docs/02-voice-pipeline.md` | Capture → transcription → TTS → voice-inbox handoff, latency budget |
 | `docs/03-conversation-design.md` | Spoken scripts: confirmations, follow-ups, failure recovery |
 | `docs/04-power-and-physical.md` | AXP2101 sleep/wake, fridge mounting, kitchen environment |
-| `docs/05-open-questions.md` | Decisions for the owner (providers, transport, provisioning) |
+| `docs/05-open-questions.md` | The owner's decisions (answered Oct 21) |
+| `docs/06-firmware.md` | The firmware: decisions, how it works, setup, build, tests |
 
 ## Status
 
-Board ordered and paid Oct 2, 2026 — arrives late October. Firmware, audio pipeline,
-transcription, TTS, and the voice-inbox handoff are all unbuilt. Transcription/TTS
-providers and the inbox transport are owner decisions (see `05-open-questions.md`).
+Board ordered and paid Oct 2, 2026 — arrives late October. The firmware is written (Oct 21) and
+builds for the 1.75C: hold-to-talk with Google Speech-to-Text, the spoken script with Google
+Text-to-Speech, a voice inbox that sends confirmed items to Muse, and deep sleep between uses.
+It hasn't run on the board yet. Start at `docs/06-firmware.md`; build with `tools/fw.sh build`,
+test with `tools/test.sh`.
 
 ## How it fits the owner's system
 

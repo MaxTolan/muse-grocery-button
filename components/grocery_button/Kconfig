@@ -1,0 +1,62 @@
+menu "Muse grocery button"
+
+    config GROCERY_BUTTON
+        bool "Grocery button: push-to-talk grocery items for Muse"
+        depends on MUSE_ENABLED
+        default n
+        help
+            The fridge grocery button (github.com/MaxTolan/muse-grocery-button):
+            replaces the SDK's voice loop and avatar with hold-to-talk grocery
+            items, Google speech, and a voice inbox to Muse.
+
+    config GROCERY_GOOGLE_API_KEY
+        string "Google Cloud API key (Speech-to-Text and Text-to-Speech)"
+        depends on GROCERY_BUTTON
+        default ""
+        help
+            tools/fw.sh fills this from google_api_key.local (git-ignored).
+            Restrict the key to the Speech-to-Text and Text-to-Speech APIs
+            in the Google Cloud console.
+
+    config GROCERY_LANGUAGE
+        string "Speech language"
+        depends on GROCERY_BUTTON
+        default "en-US"
+
+    config GROCERY_STT_MODEL
+        string "Speech-to-Text model"
+        depends on GROCERY_BUTTON
+        default "latest_short"
+        help
+            latest_short is Google's model for short utterances and commands.
+
+    config GROCERY_TTS_VOICE
+        string "Text-to-Speech voice"
+        depends on GROCERY_BUTTON
+        default "en-US-Neural2-F"
+        help
+            Any Google Cloud TTS voice name for GROCERY_LANGUAGE, e.g.
+            en-US-Neural2-D or an en-US-Chirp3-HD voice.
+
+    config GROCERY_TALK_GPIO
+        int "Talk button GPIO (deep-sleep wake)"
+        depends on GROCERY_BUTTON
+        default 3
+        help
+            The 1.75C's top (PWR) button reaches GPIO3 through an inverter:
+            high while held.
+
+    config GROCERY_AMP_GPIO
+        int "Speaker amp enable GPIO, held low in deep sleep (-1: none)"
+        depends on GROCERY_BUTTON
+        default -1
+
+    config GROCERY_DEEP_SLEEP
+        bool "Deep sleep between sessions on battery"
+        depends on GROCERY_BUTTON
+        default y
+        help
+            Off: the screen just goes dark between sessions (for bench work
+            on battery).
+
+endmenu

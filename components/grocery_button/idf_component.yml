@@ -1,0 +1,6 @@
+# Same pins as the SDK's components/muse/idf_component.yml.
+dependencies:
+  idf:
+    version: ">=5.5"
+  lvgl/lvgl:
+    version: "9.5.0"

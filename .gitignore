@@ -1,0 +1,6 @@
+/build/
+.DS_Store
+# Your Muse SDK token (mgst_...) and Google Cloud API key. Never commit them;
+# tools/fw.sh feeds them to the build.
+/sdk_token.local
+/google_api_key.local
